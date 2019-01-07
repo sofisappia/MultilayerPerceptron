@@ -1,5 +1,14 @@
-Layer layer = new Layer(2, 3);
+Layer layer = new Layer(3,5);
 
+void setup() {
+  size(1200,400);
+  
+}
+
+void draw() {
+  background(0, 100);
+  layer.printWeights();
+}
 
 class MLP{
   int inputLayerUnits;
@@ -34,12 +43,20 @@ class Layer {
   float[][] weights;
   
   Layer(int neuronsPreviousLayer, int neuronsLayer){
-    randomSeed(2);
-    for(int i=0; i < neuronsLayer; i++){
-      for(int j=0; i < neuronsPreviousLayer; i++){
-        weights[j][i] = randomGaussian();
+    this.weights = new float[neuronsPreviousLayer][neuronsLayer];
+    randomSeed(2); // busco arreglo jxi
+    for(int i=0; i < neuronsPreviousLayer; i++){ // columnas
+      for(int j=0; j < neuronsLayer; j++){ // filas
+        this.weights[i][j] = randomGaussian();
+        //print(this.weights[j][i]);
+      }
+    }
+   }
+    void printWeights(){
+      for(int i=0; i < 3; i++){
+        for(int j=0; j < 5; j++){
+          println(this.weights[i][j]);
+        }
       }
     }
   }
-
-}
