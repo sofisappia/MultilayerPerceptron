@@ -2,11 +2,12 @@ import Jama.*;
 import papaya.*;
 
 MLP mlp = new MLP(2,3,2,1);
+float[][] X = {{1,2},{2,3},{3,4}};
 
 void setup() {
   size(1200,400);
   mlp.compile(0.01, 10);
-  
+  mlp.forward(X); 
 }
 
 /*void draw() {
@@ -58,11 +59,24 @@ class MLP{
    }
    
    void forward(float[][] X){
-     float[] hi; // potenciales postsinápticos temporales
-     float[] Vi; // salida después de aplicar función de activación
+     float[][] hi = Mat.transpose(X); // potenciales postsinápticos temporales
+     float[][] Vi; // salida después de aplicar función de activación
+     float[][] W;
      
-     hi = dotProduct(X, layers.get(0).getWeights());
-     //Vi = sigmoid(hi, false);
+     //hi = dotProduct(X, layers.get(0).getWeights());
+     for(int i=0; i<layers.size(); i++){
+       W = layers.get(i).getWeights();
+       hi = Mat.multiply(W, hi);
+      // Mat.print(hi,2);
+     //try{
+       Vi = sigmoid(hi, false);
+     /*catch (ArrayIndexOutOfBoundsException e){
+       
+       float[][] Vi2 = sigmoid1D(hi, false);
+     }*/
+       Mat.print(Vi,2);
+       println();
+     }
      /*for(int i=0; i<layers.size(); i++){
       hi = dotProduct(X, layers.get(0).getWeights());
       
@@ -107,14 +121,6 @@ class LayerConnection {
    void adjustWeights(float[][] W){
      weights = W;
    }
-   /* void printWeights(){
-      for(int i=0; i < this.nPrevious; i++){
-        for(int j=0; j < this.nLayer; j++){
-          println(this.weights[i][j]);
-        }
-      }
-      println(this.weights.length);
-    }*/
   }
   
 float[] dotProduct(float[][] A, float[][] B){ 
@@ -141,20 +147,21 @@ float[] dotProduct(float[][] A, float[][] B){
 float[][] sigmoid(float[][] z, boolean derv){
   // Función que calcula la función de activación sigmoidea
   // y su derivada
-  float[][] y = new float[z.length][z[1].length];
+  float[][] y = new float[z.length][z[0].length];
   if(derv==true){ // cálculo de la derivada
     for(int i=0; i<z.length; i++){
-      for(int j=0; j<z[1].length; j++){
+      for(int j=0; j<z[0].length; j++){
         y[i][j] = z[i][j] * (1 - z[i][j]);
       }
     }
   }
   else{ // cálculo de la función sigmoidea
     for(int i=0; i<z.length; i++){
-      for(int j=0; j<z[1].length; j++){      
+      for(int j=0; j<z[0].length; j++){      
         y[i][j] = 1 / (1 + exp(-z[i][j]));
       }
     }
   }
   return y;
  }
+ 
