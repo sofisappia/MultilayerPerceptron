@@ -24,12 +24,14 @@ class MLP{
   // learning parameters
   float learningRate;
   int epochs;
+  ArrayList<LayerConnection> layers = new ArrayList<LayerConnection>();
   
-  MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits){
+  MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits){ 
     inputLayerUnits = tempInputLayerUnits;
     hiddenLayerUnits = tempHiddenLayerUnits;
     hiddenLayers = tempHiddenLayers;
     outputLayerUnits = tempOutputLayerUnits;
+    
   }
   
   void compile(float tempLearningRate, int tempEpochs){
@@ -37,10 +39,9 @@ class MLP{
     epochs = tempEpochs;
     
     // Crea arreglo de las conexiones entre cada capa
-    ArrayList<LayerConnection> layers = new ArrayList<LayerConnection>();
-    
+   
     layers.add(new LayerConnection(inputLayerUnits,hiddenLayerUnits)); //1st layer
-    for(int i=0; i<hiddenLayers; i++){ // Hidden layers
+    for(int i=1; i<hiddenLayers; i++){ // Hidden layers
       layers.add(new LayerConnection(hiddenLayerUnits,hiddenLayerUnits));
     }
     // output layer
@@ -51,32 +52,23 @@ class MLP{
    
   }
   
-  float[][] sigmoid(float[][] z, boolean derv){
-    // Función que calcula la función de activación sigmoidea
-    // y su derivada
-    float[][] y = new float[z.length][z[1].length];
-    if(derv==true){ // cálculo de la derivada
-      for(int i=0; i<z.length; i++){
-        for(int j=0; j<z[1].length; j++){
-          y[i][j] = z[i][j] * (1 - z[i][j]);
-        }
-      }
-    }
-    else{ // cálculo de la función sigmoidea
-      for(int i=0; i<z.length; i++){
-        for(int j=0; j<z[1].length; j++){      
-          y[i][j] = 1 / (1 + exp(-z[i][j]));
-        }
-      }
-    }
-    return y;
-   }
    
-   void train(double[][] X, int[] y){
+   void train(float[][] X, int[] y){
      this.forward(X);
    }
    
-   void forward(double[][] X){
+   void forward(float[][] X){
+     float[] hi; // potenciales postsinápticos temporales
+     float[] Vi; // salida después de aplicar función de activación
+     
+     hi = dotProduct(X, layers.get(0).getWeights());
+     //Vi = sigmoid(hi, false);
+     /*for(int i=0; i<layers.size(); i++){
+      hi = dotProduct(X, layers.get(0).getWeights());
+      
+     }*/
+     
+     
      
    }
    void backPropagation(){
@@ -97,19 +89,23 @@ class LayerConnection {
     nPrevious = neuronsInPreviousLayer;
     nLayer = neuronsInLayer;
     // weights initialization
-    this.weights = new float[nPrevious][nLayer];
+    this.weights = new float[nLayer][nPrevious];
     randomSeed(2); // busco arreglo jxi
-    for(int i=0; i < nPrevious; i++){ // columnas
-      for(int j=0; j < nLayer; j++){ // filas
+    for(int i=0; i < nLayer; i++){ // columnas
+      for(int j=0; j < nPrevious; j++){ // filas
         this.weights[i][j] = randomGaussian();
         //print(this.weights[j][i]);
       }
     }
-    // convert to Matrix
-   // W = new Matrix(weights);
+   // Mat.print(weights,0);
+   // println();
    }
    float[][] getWeights(){ 
      return weights; 
+   }
+   
+   void adjustWeights(float[][] W){
+     weights = W;
    }
    /* void printWeights(){
       for(int i=0; i < this.nPrevious; i++){
@@ -121,7 +117,7 @@ class LayerConnection {
     }*/
   }
   
-float[] dotProduct(float[][] A, float[][] B){
+float[] dotProduct(float[][] A, float[][] B){ 
       int ARowLength = A.length; // m1 rows length
       int BRowLength = B.length;    // m2 rows length
       int AColLength = A[1].length;
@@ -141,3 +137,24 @@ float[] dotProduct(float[][] A, float[][] B){
         return D;
       }  
 }
+
+float[][] sigmoid(float[][] z, boolean derv){
+  // Función que calcula la función de activación sigmoidea
+  // y su derivada
+  float[][] y = new float[z.length][z[1].length];
+  if(derv==true){ // cálculo de la derivada
+    for(int i=0; i<z.length; i++){
+      for(int j=0; j<z[1].length; j++){
+        y[i][j] = z[i][j] * (1 - z[i][j]);
+      }
+    }
+  }
+  else{ // cálculo de la función sigmoidea
+    for(int i=0; i<z.length; i++){
+      for(int j=0; j<z[1].length; j++){      
+        y[i][j] = 1 / (1 + exp(-z[i][j]));
+      }
+    }
+  }
+  return y;
+ }
