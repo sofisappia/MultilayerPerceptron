@@ -1,13 +1,21 @@
 import Jama.*;
 import papaya.*;
 
+//https://www.bogotobogo.com/python/python_Neural_Networks_Backpropagation_for_XOR_using_one_hidden_layer.php
+//https://github.com/Frixoe/xor-neural-network/blob/master/XOR-Net-Notebook.ipynb
+//https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
+//https://aimatters.wordpress.com/2016/01/11/solving-xor-with-a-neural-network-in-python/ (?
+
 MLP mlp = new MLP(2,3,2,1);
 float[][] X = {{1,2},{2,3},{3,4}};
+float[][] y = {{0},{1},{0}};
 
 void setup() {
   size(1200,400);
   mlp.compile(0.01, 10);
-  mlp.forward(X); 
+  mlp.train(X,y);
+  //mlp.forward(X); 
+  
 }
 
 /*void draw() {
@@ -39,53 +47,66 @@ class MLP{
     learningRate = tempLearningRate;
     epochs = tempEpochs;
     
-    // Crea arreglo de las conexiones entre cada capa
-   
+    // Crea arreglo de las conexiones entre cada capa  
     layers.add(new LayerConnection(inputLayerUnits,hiddenLayerUnits)); //1st layer
     for(int i=1; i<hiddenLayers; i++){ // Hidden layers
       layers.add(new LayerConnection(hiddenLayerUnits,hiddenLayerUnits));
     }
     // output layer
-    layers.add(new LayerConnection(hiddenLayerUnits,outputLayerUnits));
-    
-    print(layers.size()); // Tamaño de las capas ocultas
-  //  layers.get(0).printWeights();
-   
+    layers.add(new LayerConnection(hiddenLayerUnits, outputLayerUnits));
+  //  print(layers.size()); // Tamaño de las capas ocultas  
   }
   
    
-   void train(float[][] X, int[] y){
-     this.forward(X);
+   void train(float[][] X, float[][] y){
+     ArrayList<float[][]> activations = new ArrayList<float[][]>();
+     activations = this.forward(X);
+     mlp.backPropagation(activations, y);
+     //Mat.print(activations.get(activations.size()-1),3);
    }
    
-   void forward(float[][] X){
+   ArrayList<float[][]> forward(float[][] X){
      float[][] hi = Mat.transpose(X); // potenciales postsinápticos temporales
-     float[][] Vi; // salida después de aplicar función de activación
+     float[][] Vi = new float[0][0]; // salida después de aplicar función de activación
      float[][] W;
+     ArrayList<float[][]> activationOutputs = new ArrayList<float[][]>(); 
      
-     //hi = dotProduct(X, layers.get(0).getWeights());
      for(int i=0; i<layers.size(); i++){
        W = layers.get(i).getWeights();
        hi = Mat.multiply(W, hi);
-      // Mat.print(hi,2);
-     //try{
        Vi = sigmoid(hi, false);
-     /*catch (ArrayIndexOutOfBoundsException e){
-       
-       float[][] Vi2 = sigmoid1D(hi, false);
-     }*/
-       Mat.print(Vi,2);
-       println();
+       activationOutputs.add(Vi);
+      // Mat.print(Vi,2);
+       //println();
      }
-     /*for(int i=0; i<layers.size(); i++){
-      hi = dotProduct(X, layers.get(0).getWeights());
-      
-     }*/
-     
-     
-     
+       return activationOutputs; 
    }
-   void backPropagation(){
+   void backPropagation(ArrayList<float[][]> a, float[][] y){
+     //https://medium.com/@erikhallstrm/backpropagation-from-the-beginning-77356edf427d
+     
+     //https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
+     
+     ArrayList<float[][]> deltas = new ArrayList<float[][]>();
+     float[][] di = subtract(Mat.transpose(y), a.get(a.size()-1)); // delta of the output layer
+     float[][] dWij = scalarMultiply(learningRate, Mat.dotMultiply(di, a.get(a.size()-1))); 
+     
+ /*    Mat.print(dWij,5);
+     println();
+     deltas.add(Mat.dotMultiply(di, sigmoid(a.get(a.size()-1),true)));
+    
+
+     float[][] Wjk = layers.get(layers.size()-1).getWeights();
+     float[][] dj = deltas.get(deltas.size()-1);
+
+     //Mat.print(matrixDotProduct(Wjk, dj),2);
+     println();
+     println();
+     Mat.print(sigmoid(a.get(a.size()-2),true),2);
+    // Mat.dotMultiply(Mat.dotMultiply(layers.get(layers.size()-1).getWeights(), deltas.get(deltas.size()-1)), sigmoid(a.get(a.size()-2),true));
+     
+     
+*/
+     
    }
    void predict(){
    }
@@ -122,12 +143,15 @@ class LayerConnection {
      weights = W;
    }
   }
+//--------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------
+// Métodos auxiliares
   
-float[] dotProduct(float[][] A, float[][] B){ 
+float[] matrixDotProduct(float[][] A, float[][] B){ 
       int ARowLength = A.length; // m1 rows length
       int BRowLength = B.length;    // m2 rows length
-      int AColLength = A[1].length;
-      int BColLength = A[1].length;
+      int AColLength = A[0].length;
+      int BColLength = A[0].length;
       if( (ARowLength != BRowLength) || (AColLength != BColLength)){
         println("Error de tamanio");
         return null; // matrix multiplication is not possible
@@ -165,3 +189,38 @@ float[][] sigmoid(float[][] z, boolean derv){
   return y;
  }
  
+float[][] subtract(float[][] A, float[][] B){
+  int rowsA = A.length;
+  int colsA = A[0].length;
+  int rowsB = B.length;
+  int colsB = B[0].length;
+  float[][] C = new float[rowsA][colsA];
+  
+ /* print("rows A: ", rowsA);
+  print(" rows B: ", rowsB);
+  print(" cols A: ", colsA);
+  println(" cols B: ", colsB);*/
+  if((rowsA != rowsB) || (colsA != colsB)){
+    print("Dimensiones no coinciden");
+    return null;
+  }else{
+    for(int i=0; i<rowsA; i++){
+      for(int j=0; j<colsA; j++){
+        C[i][j] = A[i][j] - B[i][j];  
+      }
+    }
+    return C;
+  }
+}
+
+float[][] scalarMultiply(float a, float[][] A){
+  int rowsA = A.length;
+  int colsA = A[0].length;
+  float[][] B = new float[rowsA][colsA];
+  for(int i=0; i<rowsA; i++){
+    for(int j=0; j<colsA; j++){
+      B[i][j] = a * A[i][j];
+    }
+  }
+  return B;
+}
