@@ -81,31 +81,36 @@ class MLP{
      }
        return activationOutputs; 
    }
-   void backPropagation(ArrayList<float[][]> a, float[][] y){
+   void backPropagation(ArrayList<float[][]> activations, float[][] y){
      //https://medium.com/@erikhallstrm/backpropagation-from-the-beginning-77356edf427d
      
      //https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
      
      ArrayList<float[][]> deltas = new ArrayList<float[][]>();
-     float[][] di = subtract(Mat.transpose(y), a.get(a.size()-1)); // delta of the output layer
-     float[][] dWij = scalarMultiply(learningRate, Mat.dotMultiply(di, a.get(a.size()-1))); 
+     // output layer
+     float[][] di;
+     float[][] dWij;
+     // hidden layers
+     float[][] dj;
+     float[][] Wjk;
      
- /*    Mat.print(dWij,5);
-     println();
-     deltas.add(Mat.dotMultiply(di, sigmoid(a.get(a.size()-1),true)));
-    
-
-     float[][] Wjk = layers.get(layers.size()-1).getWeights();
-     float[][] dj = deltas.get(deltas.size()-1);
-
-     //Mat.print(matrixDotProduct(Wjk, dj),2);
-     println();
-     println();
-     Mat.print(sigmoid(a.get(a.size()-2),true),2);
-    // Mat.dotMultiply(Mat.dotMultiply(layers.get(layers.size()-1).getWeights(), deltas.get(deltas.size()-1)), sigmoid(a.get(a.size()-2),true));
+     // output layer
+     di = subtract(Mat.transpose(y), activations.get(activations.size()-1)); 
+     di = Mat.dotMultiply(di, activations.get(activations.size()-1));// delta of the output layer
+     deltas.add(di);
+     dWij = scalarMultiply(learningRate, di); 
+        
+     // hidden layer
      
+     for(int i=layers.size()-1; i>=0; i--){
+       // dj = (Wij.T * di) .* f'(aj)
+       dj = Mat.multiply(Mat.transpose(layers.get(i).getWeights()),deltas.get(deltas.size()-1));
+       dj = matrixDotProduct(dj, sigmoid(activations.get(i-1), true));
+       deltas.add(dj);
+       Mat.print(dj,2);
+       println();
+     }
      
-*/
      
    }
    void predict(){
@@ -147,24 +152,48 @@ class LayerConnection {
 //--------------------------------------------------------------------------------------------------------
 // Métodos auxiliares
   
-float[] matrixDotProduct(float[][] A, float[][] B){ 
-      int ARowLength = A.length; // m1 rows length
-      int BRowLength = B.length;    // m2 rows length
-      int AColLength = A[0].length;
-      int BColLength = A[0].length;
-      if( (ARowLength != BRowLength) || (AColLength != BColLength)){
-        println("Error de tamanio");
-        return null; // matrix multiplication is not possible
-      }
-      else{
-        float[][] C = Mat.dotMultiply(A,B);
-        float[] D = new float[ARowLength];
-        for(int i=0; i<ARowLength; i++){
-          for(int j=0; j<AColLength; j++){
-            D[i] += C[i][j];
+float[][] dotProduct(float[][] A, float[][] B, boolean columns){ 
+      // columns: boolean to know if data is arranged in columns or not
+      int ARows = A.length; // m1 rows length
+      int BRows = B.length;    // m2 rows length
+      int ACols = A[0].length;
+      int BCols = A[0].length;
+      Mat.print(A, 2);
+      println("B");
+      Mat.print(B,2);
+      println();
+      if((ACols != BCols) || (ARows != BRows)){
+          println("Error de tamaño");
+          return null; // matrix multiplication is not possible
+      }else{
+        if(columns){
+          float[][] D = new float[ARows][1];
+          for(int i=0; i<ARows; i++){
+            D[i][0] = dotProduct(A[i], B[i]);
+          } return D;
+        }else{
+          float[][] D = new float[1][ACols];
+          for(int i=0; i<ACols; i++){
+            D[0][i] = dotProduct(Mat.transpose(A)[i], Mat.transpose(B)[i]);
+          }  return D;          
           }
-        }
-        return D;
+      }
+}
+
+
+float dotProduct(float[] A, float[] B){ 
+      // columns: boolean to know if data is arranged in columns or not
+      int Alen = A.length; // m1 rows length
+      int Blen = B.length;    // m2 rows length
+      if(Alen != Blen){
+          println("Error de tamaño");
+          return 0; 
+      }else{
+        float D = 0;
+          for(int i=0; i<Alen; i++){
+              D += A[i] * B[i];
+          }
+          return D;          
       }  
 }
 
@@ -196,10 +225,6 @@ float[][] subtract(float[][] A, float[][] B){
   int colsB = B[0].length;
   float[][] C = new float[rowsA][colsA];
   
- /* print("rows A: ", rowsA);
-  print(" rows B: ", rowsB);
-  print(" cols A: ", colsA);
-  println(" cols B: ", colsB);*/
   if((rowsA != rowsB) || (colsA != colsB)){
     print("Dimensiones no coinciden");
     return null;
