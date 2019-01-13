@@ -14,9 +14,7 @@ float[][] y = {{0},{1},{0},{1}};
 void setup() {
   size(1200,400);
   mlp.compile(0.01, 10);
-  mlp.train(X,y);
-  //mlp.forward(X); 
-  
+  mlp.train(X,y);  
 }
 
 /*void draw() {
@@ -62,9 +60,11 @@ class MLP{
    void train(float[][] X, float[][] y){
      ArrayList<float[][]> activations = new ArrayList<float[][]>();
      ArrayList<float[][]> dW;
-     activations = this.forward(X);
-     dW = this.backPropagation(activations, y);
-     //Mat.print(activations.get(activations.size()-1),3);
+     for(int i =0; i<epochs; i++){
+       activations = this.forward(X);
+       dW = this.backPropagation(activations, y);
+       this.updateWeights(dW);
+     }
    }
    
    ArrayList<float[][]> forward(float[][] X){
@@ -78,8 +78,6 @@ class MLP{
        hi = Mat.multiply(W, hi);
        Vi = sigmoid(hi, false);
        activationOutputs.add(Vi);
-      // Mat.print(Vi,2);
-       //println();
      }
        return activationOutputs; 
    }
@@ -97,19 +95,16 @@ class MLP{
      float[][] dj;
      float[][] dWjk;
      
-     // output layer
-    
+     // output layer  
      di = subtract(Mat.transpose(y), activations.get(activations.size()-1)); 
      di = Mat.dotMultiply(di, sigmoid(activations.get(activations.size()-1),true));// delta of the output layer
      deltas.add(di);
      
      dWij = scalarMultiply(learningRate, di); 
      dWij = Mat.multiply(activations.get(activations.size()-2), Mat.transpose(di));
-     deltaW.add(dWij);
-   
+     deltaW.add(Mat.transpose(dWij));   
     
-     // hidden layer
-     
+     // hidden layer 
      for(int i=layers.size()-1; i>0; i--){
        // dj = (Wij.T * di) .* f'(aj)
        dj = Mat.multiply(Mat.transpose(layers.get(i).getWeights()), deltas.get(deltas.size()-1));
@@ -117,7 +112,7 @@ class MLP{
        deltas.add(dj);
        
        dWjk = scalarMultiply(learningRate, dj);
-       if(i == 1){
+       if(i == 1){         
          dWjk = Mat.multiply(dWjk, X);
          deltaW.add(dWjk);
        }else{ 
@@ -125,10 +120,13 @@ class MLP{
          deltaW.add(dWjk);
        }
      }
-     return deltaW;
-     
+     return deltaW;  
    }
-   void weightUpdate(){
+   
+   void updateWeights(ArrayList<float[][]> dW){
+     for(int i=0; i<layers.size(); i++){
+       layers.get(i).adjustWeights(dW.get(dW.size()-1-i));
+     }
    
    }
    void predict(){
@@ -152,18 +150,15 @@ class LayerConnection {
     for(int i=0; i < nLayer; i++){ // columnas
       for(int j=0; j < nPrevious; j++){ // filas
         this.weights[i][j] = randomGaussian();
-        //print(this.weights[j][i]);
       }
     }
-   // Mat.print(weights,0);
-   // println();
    }
    float[][] getWeights(){ 
      return weights; 
    }
    
-   void adjustWeights(float[][] W){
-     weights = W;
+   void adjustWeights(float[][] dW){
+     this.weights = Mat.sum(this.weights, dW);
    }
   }
 //--------------------------------------------------------------------------------------------------------
