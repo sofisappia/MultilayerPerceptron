@@ -8,13 +8,15 @@ import papaya.*;
 
 // MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits)
 MLP mlp = new MLP(2,5,2,1);
-float[][] X = {{1,2},{2,3},{3,4},{1,2}};
-float[][] y = {{0},{1},{0},{1}};
+float[][] X = {{0,0},{0,1},{1,0},{1,1}};
+float[][] y = {{0},{1},{1},{0}};
 
 void setup() {
   size(1200,400);
-  mlp.compile(0.01, 10);
-  mlp.train(X,y);  
+  mlp.compile(0.01, 1000);
+  mlp.train(X,y);
+  float[][] pred = mlp.predict(X);
+  Mat.print(pred,2);
 }
 
 /*void draw() {
@@ -129,7 +131,10 @@ class MLP{
      }
    
    }
-   void predict(){
+   float[][] predict(float[][] X){
+     ArrayList<float[][]> outputs = new ArrayList<float[][]>();
+     outputs = this.forward(X);
+     return outputs.get(outputs.size()-1); 
    }
 }
 
@@ -212,11 +217,9 @@ float[][] sigmoid(float[][] z, boolean derv){
   // y su derivada
   float[][] y = new float[z.length][z[0].length];
   if(derv==true){ // cálculo de la derivada
-    for(int i=0; i<z.length; i++){
-      for(int j=0; j<z[0].length; j++){
-        y[i][j] = z[i][j] * (1 - z[i][j]);
-      }
-    }
+      float[][] sigm = sigmoid(z, false);
+      y = Mat.dotMultiply(sigm, subtract(1, sigm));
+   // }
   }
   else{ // cálculo de la función sigmoidea
     for(int i=0; i<z.length; i++){
@@ -246,6 +249,18 @@ float[][] subtract(float[][] A, float[][] B){
     }
     return C;
   }
+}
+
+float[][] subtract(float a, float[][] B){
+  int rowsB = B.length;
+  int colsB = B[0].length;
+  float[][] C = new float[rowsB][colsB];
+  for(int i=0; i<rowsB; i++){
+    for(int j=0; j<colsB; j++){
+        C[i][j] = a - B[i][j];  
+      }
+   }
+   return C;
 }
 
 float[][] scalarMultiply(float a, float[][] A){
