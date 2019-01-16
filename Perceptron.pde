@@ -1,11 +1,17 @@
 import Jama.*;
 import papaya.*;
 
-//https://www.bogotobogo.com/python/python_Neural_Networks_Backpropagation_for_XOR_using_one_hidden_layer.php
-//https://github.com/Frixoe/xor-neural-network/blob/master/XOR-Net-Notebook.ipynb
-//https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
-//https://aimatters.wordpress.com/2016/01/11/solving-xor-with-a-neural-network-in-python/ (?
-
+//-------------------------------------------------------------------------------------------------------------------------------------------------
+//        Perceptrón multicapa implementado a partir de las siguientes referencias:
+//
+//          https://www.bogotobogo.com/python/python_Neural_Networks_Backpropagation_for_XOR_using_one_hidden_layer.php
+//          https://github.com/Frixoe/xor-neural-network/blob/master/XOR-Net-Notebook.ipynb
+//          https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
+//          https://medium.com/@erikhallstrm/backpropagation-from-the-beginning-77356edf427d  
+//          http://www.briandolhansky.com/blog/2014/10/30/artificial-neural-networks-matrix-form-part-5
+//          https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
+//
+//-------------------------------------------------------------------------------------------------------------------------------------------------
 // MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits)
 MLP mlp = new MLP(2,30,1,1);
 float[][] X = {{0.15,0.21},{0.1,0.99},{0.97,0.12},{0.88,0.981}};
@@ -62,8 +68,8 @@ class MLP{
   
    
    void train(float[][] X, float[][] y){
-     ArrayList<float[][]> activations = new ArrayList<float[][]>();
-     ArrayList<float[][]> dW;
+     ArrayList<float[][]> activations = new ArrayList<float[][]>(); //array con los outputs de cada capa
+     ArrayList<float[][]> dW; // para la corrección de pesos
      for(int i =0; i<epochs; i++){
        activations = this.forward(X);
        dW = this.backPropagation(activations, y);
@@ -73,36 +79,28 @@ class MLP{
    
    ArrayList<float[][]> forward(float[][] X){
      float[][] hi; // potenciales postsinápticos temporales
-     float[][] Vi = new float[0][0]; // salida después de aplicar función de activación
      float[][] W;
+     float[][] Vi = new float[0][0]; // salida después de aplicar función de activación
      ArrayList<float[][]> activationOutputs = new ArrayList<float[][]>(); 
-     //= Mat.transpose(X)
+     
      for(int i=0; i<layers.size(); i++){
-      // println(i);
       if(i == 0){
         hi = extend(X, 1, true);
       }else{
         hi = activationOutputs.get(activationOutputs.size()-1);
       }
       W = layers.get(i).getWeights();
-    /*  println(i, " ");
-      shape(W);
-      shape(hi);*/
       hi = Mat.multiply(hi, Mat.transpose(W));
       Vi = sigmoid(hi, false);
       if(i != layers.size()-1){
         Vi = extend(Vi, 1, true);
        }
-   //    print(i," ");
-     //  shape(Vi);
        activationOutputs.add(Vi);       
      }
      return activationOutputs; 
    }
    ArrayList<float[][]> backPropagation(ArrayList<float[][]> activations, float[][] y){
-     // https://medium.com/@erikhallstrm/backpropagation-from-the-beginning-77356edf427d  
-    // http://www.briandolhansky.com/blog/2014/10/30/artificial-neural-networks-matrix-form-part-5
-     //https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
+
      
      ArrayList<float[][]> deltas = new ArrayList<float[][]>();
      ArrayList<float[][]> deltaW = new ArrayList<float[][]>();
@@ -112,37 +110,33 @@ class MLP{
      // hidden layers
      float[][] dj;
      float[][] dWjk;
+     // layer outputs
+     float[][] ai; // last layer output
+     float[][] aj; // hidden layer output
      
-     // output layer  
+     // output layer
+     ai = activations.get(activations.size()-1);
+     aj = activations.get(activations.size()-2);   
+     
      di = subtract(y, activations.get(activations.size()-1)); 
-     
-    // shape(sigmoid(activations.get(activations.size()-1),true));
-     float[][] ai = activations.get(activations.size()-1);
      di = Mat.dotMultiply(di, sigmoid(ai,true));// delta of the output layer
      deltas.add(di);
-   //  shape(di);
-     float[][] aj = activations.get(activations.size()-2);
+     
+
     
      dWij = scalarMultiply(learningRate, di);     
      dWij = Mat.multiply(Mat.transpose(di), aj);
      deltaW.add(dWij);
      
-     // hidden layer 
+     // hidden layers
+       
      for(int i=layers.size()-1; i>0; i--){
-      /* println();
-       println(i);
        // dj = (Wij.T * di) .* f'(aj)
-       shape(layers.get(i).getWeights());
-       shape(deltas.get(deltas.size()-1));
-       shape(sigmoid(activations.get(i-1), true));*/
        dj = Mat.multiply(deltas.get(deltas.size()-1), layers.get(i).getWeights());
        dj = Mat.dotMultiply(dj, sigmoid(activations.get(i-1), true));
        deltas.add(dj);
        
        dWjk = scalarMultiply(learningRate, dj);
-      // println();
-      // shape(extend(X,1,true));
-       //shape(dWjk);
        if(i == 1){         
          dWjk = Mat.multiply(Mat.transpose(dWjk), extend(X,1,true));
          deltaW.add(dWjk);
