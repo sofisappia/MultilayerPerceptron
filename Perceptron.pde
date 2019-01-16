@@ -7,15 +7,17 @@ import papaya.*;
 //https://aimatters.wordpress.com/2016/01/11/solving-xor-with-a-neural-network-in-python/ (?
 
 // MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits)
-MLP mlp = new MLP(2,5,2,1);
-float[][] X = {{0,0},{0,1},{1,0},{1,1}};
+MLP mlp = new MLP(2,30,1,1);
+float[][] X = {{0.15,0.21},{0.1,0.99},{0.97,0.12},{0.88,0.981}};
+float[][] X2 = {{0,1},{1,1}};
 float[][] y = {{0},{1},{1},{0}};
 
 void setup() {
   size(1200,400);
-  mlp.compile(0.01, 1000);
+  mlp.compile(0.01, 10000);
   mlp.train(X,y);
   float[][] pred = mlp.predict(X);
+  
   Mat.print(pred,2);
 }
 
@@ -49,12 +51,12 @@ class MLP{
     epochs = tempEpochs;
     
     // Crea arreglo de las conexiones entre cada capa  
-    layers.add(new LayerConnection(inputLayerUnits,hiddenLayerUnits)); //1st layer
+    layers.add(new LayerConnection(inputLayerUnits, hiddenLayerUnits, false)); //1st layer
     for(int i=1; i<hiddenLayers; i++){ // Hidden layers
-      layers.add(new LayerConnection(hiddenLayerUnits,hiddenLayerUnits));
+      layers.add(new LayerConnection(hiddenLayerUnits, hiddenLayerUnits, false));
     }
     // output layer
-    layers.add(new LayerConnection(hiddenLayerUnits, outputLayerUnits));
+    layers.add(new LayerConnection(hiddenLayerUnits, outputLayerUnits, true));
   //  print(layers.size()); // Tamaño de las capas ocultas  
   }
   
@@ -70,22 +72,36 @@ class MLP{
    }
    
    ArrayList<float[][]> forward(float[][] X){
-     float[][] hi = Mat.transpose(X); // potenciales postsinápticos temporales
+     float[][] hi; // potenciales postsinápticos temporales
      float[][] Vi = new float[0][0]; // salida después de aplicar función de activación
      float[][] W;
      ArrayList<float[][]> activationOutputs = new ArrayList<float[][]>(); 
-     
+     //= Mat.transpose(X)
      for(int i=0; i<layers.size(); i++){
-       W = layers.get(i).getWeights();
-       hi = Mat.multiply(W, hi);
-       Vi = sigmoid(hi, false);
-       activationOutputs.add(Vi);
+      // println(i);
+      if(i == 0){
+        hi = extend(X, 1, true);
+      }else{
+        hi = activationOutputs.get(activationOutputs.size()-1);
+      }
+      W = layers.get(i).getWeights();
+    /*  println(i, " ");
+      shape(W);
+      shape(hi);*/
+      hi = Mat.multiply(hi, Mat.transpose(W));
+      Vi = sigmoid(hi, false);
+      if(i != layers.size()-1){
+        Vi = extend(Vi, 1, true);
+       }
+   //    print(i," ");
+     //  shape(Vi);
+       activationOutputs.add(Vi);       
      }
-       return activationOutputs; 
+     return activationOutputs; 
    }
    ArrayList<float[][]> backPropagation(ArrayList<float[][]> activations, float[][] y){
      // https://medium.com/@erikhallstrm/backpropagation-from-the-beginning-77356edf427d  
-     
+    // http://www.briandolhansky.com/blog/2014/10/30/artificial-neural-networks-matrix-form-part-5
      //https://www.uow.edu.au/~markus/teaching/CSCI323/Lecture_MLP.pdf
      
      ArrayList<float[][]> deltas = new ArrayList<float[][]>();
@@ -98,24 +114,37 @@ class MLP{
      float[][] dWjk;
      
      // output layer  
-     di = subtract(Mat.transpose(y), activations.get(activations.size()-1)); 
-     di = Mat.dotMultiply(di, sigmoid(activations.get(activations.size()-1),true));// delta of the output layer
-     deltas.add(di);
+     di = subtract(y, activations.get(activations.size()-1)); 
      
-     dWij = scalarMultiply(learningRate, di); 
-     dWij = Mat.multiply(activations.get(activations.size()-2), Mat.transpose(di));
-     deltaW.add(Mat.transpose(dWij));   
+    // shape(sigmoid(activations.get(activations.size()-1),true));
+     float[][] ai = activations.get(activations.size()-1);
+     di = Mat.dotMultiply(di, sigmoid(ai,true));// delta of the output layer
+     deltas.add(di);
+   //  shape(di);
+     float[][] aj = activations.get(activations.size()-2);
     
+     dWij = scalarMultiply(learningRate, di);     
+     dWij = Mat.multiply(Mat.transpose(di), aj);
+     deltaW.add(dWij);
+     
      // hidden layer 
      for(int i=layers.size()-1; i>0; i--){
+      /* println();
+       println(i);
        // dj = (Wij.T * di) .* f'(aj)
-       dj = Mat.multiply(Mat.transpose(layers.get(i).getWeights()), deltas.get(deltas.size()-1));
+       shape(layers.get(i).getWeights());
+       shape(deltas.get(deltas.size()-1));
+       shape(sigmoid(activations.get(i-1), true));*/
+       dj = Mat.multiply(deltas.get(deltas.size()-1), layers.get(i).getWeights());
        dj = Mat.dotMultiply(dj, sigmoid(activations.get(i-1), true));
        deltas.add(dj);
        
        dWjk = scalarMultiply(learningRate, dj);
+      // println();
+      // shape(extend(X,1,true));
+       //shape(dWjk);
        if(i == 1){         
-         dWjk = Mat.multiply(dWjk, X);
+         dWjk = Mat.multiply(Mat.transpose(dWjk), extend(X,1,true));
          deltaW.add(dWjk);
        }else{ 
          dWjk = Mat.multiply(dWjk, Mat.transpose(activations.get(i-2)));
@@ -146,11 +175,23 @@ class LayerConnection {
   int nLayer;
   //Matrix W;
   
-  LayerConnection(int neuronsInPreviousLayer, int neuronsInLayer){
+  LayerConnection(int neuronsInPreviousLayer, int neuronsInLayer, boolean isOutputlayer){
     nPrevious = neuronsInPreviousLayer;
     nLayer = neuronsInLayer;
     // weights initialization
-    this.weights = new float[nLayer][nPrevious];
+    if(isOutputlayer){
+      this.nPrevious = nPrevious+1;
+      this.weights = new float[nLayer][nPrevious];
+      this.initWeights();
+   }else{
+      //this.nLayer = nLayer+1;
+      this.nPrevious = nPrevious+1;
+      this.weights = new float[nLayer][nPrevious];
+      this.initWeights(); 
+      //this.weights = extend(this.weights, 1);
+   }
+  }
+   void initWeights(){
     randomSeed(2); // busco arreglo jxi
     for(int i=0; i < nLayer; i++){ // columnas
       for(int j=0; j < nPrevious; j++){ // filas
@@ -274,3 +315,40 @@ float[][] scalarMultiply(float a, float[][] A){
   }
   return B;
 }
+
+float[][] extend(float[][] A, float a, boolean columns){
+  int rowsA = A.length;
+  int colsA = A[0].length;
+  float[][] B;
+  if(columns){
+    B = new float[rowsA][colsA+1];
+    for(int i=0; i<rowsA; i++){
+      for(int j=0; j<colsA; j++){
+        B[i][j] = A[i][j];
+      }
+      B[i][colsA] = a;
+    }
+  }else{
+    B = new float[rowsA+1][colsA];
+    for(int i=0; i<rowsA; i++){
+      for(int j=0; j<colsA; j++){
+        B[i][j] = A[i][j];
+        B[rowsA][j] = a;
+      }
+      
+    }
+  }    
+  return B;
+  }
+
+void shape(float[][] A){
+  int rowsA = A.length;
+  int colsA = A[0].length;
+  println(rowsA, "x", colsA);
+}
+
+void shape(float[] A){
+  int rowsA = A.length;
+  println(rowsA, "x0");
+}
+  
