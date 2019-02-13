@@ -13,14 +13,19 @@ import papaya.*;
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 // MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits)
-MLP mlp = new MLP(2,30,1,1);
-float[][] X = {{0.15,0.21},{0.1,0.99},{0.97,0.12},{0.88,0.981}};
-float[][] X2 = {{0,1},{1,1}};
-float[][] y = {{0},{1},{1},{0}};
+//MLP mlp = new MLP(2,30,1,1);
+MLP mlp = new MLP(2,30,1,5);
+
+float[][] X = {{0.15,0.21},{0.1,0.89},{0.9,0.12},{0.8,0.9},{0.8,0.9}};
+float[][] X2 = {{0.2,0.11},{0.12,0.8},{0.8,0.2},{0.89,0.8}};
+//float[][] X2 = {{0,1},{1,1}};
+//float[][] y = {{0},{1},{1},{0}};
+//float[][] y = {{1,0,0},{0,0,1},{0,1,0},{1,0,0}};
+float[][] y = {{1,0,0,0,0},{0,1,0,0,0},{0,0,0,0,1},{0,0,0,1,0},{0,0,1,0,0}};
 
 void setup() {
   size(1200,400);
-  mlp.compile(0.01, 10000);
+  mlp.compile(0.01, 50000);
   mlp.train(X,y);
   float[][] pred = mlp.predict(X);
   
@@ -91,11 +96,16 @@ class MLP{
       }
       W = layers.get(i).getWeights();
       hi = Mat.multiply(hi, Mat.transpose(W));
-      Vi = sigmoid(hi, false);
+      //Vi = sigmoid(hi, false);
       if(i != layers.size()-1){
+        Vi = sigmoid(hi, false);
         Vi = extend(Vi, 1, true);
+      }else{
+         Vi = softmax(hi);
        }
-       activationOutputs.add(Vi);       
+       activationOutputs.add(Vi); 
+       
+             
      }
      return activationOutputs; 
    }
@@ -114,12 +124,17 @@ class MLP{
      float[][] ai; // last layer output
      float[][] aj; // hidden layer output
      
+     
+     float[][] loss; 
+  
      // output layer
      ai = activations.get(activations.size()-1);
      aj = activations.get(activations.size()-2);   
      
-     di = subtract(y, activations.get(activations.size()-1)); 
-     di = Mat.dotMultiply(di, sigmoid(ai,true));// delta of the output layer
+     loss = delta_cross_entropy(ai, argmax(y));     
+     //di = subtract(y, activations.get(activations.size()-1)); 
+     //di = Mat.dotMultiply(di, sigmoid(ai,true));// delta of the output layer
+     di = Mat.dotMultiply(loss, softmax(ai));// delta of the output layer
      deltas.add(di);
      
 
@@ -157,8 +172,11 @@ class MLP{
    float[][] predict(float[][] X){
      ArrayList<float[][]> outputs = new ArrayList<float[][]>();
      outputs = this.forward(X);
-     return outputs.get(outputs.size()-1); 
+    //return outputs.get(outputs.size()-1);//
+    return softmax(outputs.get(outputs.size()-1)); 
    }
+   
+
 }
 
 class LayerConnection {
@@ -204,7 +222,35 @@ class LayerConnection {
 //--------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------
 // Métodos auxiliares
-  
+
+float[][] softmax(float[][] A){
+  int n_ex = A.length; // number of examples
+  int n_classes = A[0].length; // number of classes
+  float[][] probs = new float[n_ex][n_classes]; 
+  // variables auxiliares
+  float[] tempProb = new float[n_classes];
+  float probSum = 0;
+  for(int i=0; i<n_ex; i++){
+    float max = max(A[i]); // para que el rango de entradas sea cercano a cero (evitar division por cero)  
+    for(int j=0; j<n_classes; j++){
+      tempProb[j] = exp(A[i][j] - max);
+    }
+    probSum = Mat.sum(tempProb);
+    probs[i] = scalarMultiply(1/probSum, tempProb);
+  }
+  return probs;
+}
+float[][] delta_cross_entropy(float[][] X, int[] y){
+   int n = y.length; //number of examples
+   float[][] grad = softmax(X);
+   for(int i=0; i<n; i++){
+     grad[i][y[i]] -= 1;
+   }
+   grad = scalarMultiply(1.0/n, grad);
+   return grad;
+ }
+
+
 float[][] dotProduct(float[][] A, float[][] B, boolean columns){ 
       // columns: boolean to know if data is arranged in columns or not
       int ARows = A.length; // m1 rows length
@@ -310,6 +356,16 @@ float[][] scalarMultiply(float a, float[][] A){
   return B;
 }
 
+float[] scalarMultiply(float a, float[] A){
+  int lenA = A.length;
+  float[] B = new float[lenA];
+  for(int i=0; i<lenA; i++){
+      B[i] = a * A[i];
+  }
+  return B;
+}
+
+
 float[][] extend(float[][] A, float a, boolean columns){
   int rowsA = A.length;
   int colsA = A[0].length;
@@ -346,3 +402,16 @@ void shape(float[] A){
   println(rowsA, "x0");
 }
   
+int[] argmax(float[][] y){
+  int rows = y.length;
+  int cols = y[0].length;
+  int[] y_cat = new int[rows];
+  for(int i=0; i<rows; i++){
+    for(int j=0; j<cols; j++){
+      if(y[i][j] == 1){
+        y_cat[i] = j;
+      }
+    }
+  }
+  return y_cat;
+}
