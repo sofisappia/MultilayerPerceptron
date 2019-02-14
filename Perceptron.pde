@@ -14,20 +14,17 @@ import papaya.*;
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 // MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits)
 //MLP mlp = new MLP(2,30,1,1);
-MLP mlp = new MLP(2,30,1,5);
+MLP mlp = new MLP(2,30,1,3);
 
-float[][] X = {{0.15,0.21},{0.1,0.89},{0.9,0.12},{0.8,0.9},{0.8,0.9}};
-float[][] X2 = {{0.2,0.11},{0.12,0.8},{0.8,0.2},{0.89,0.8}};
-//float[][] X2 = {{0,1},{1,1}};
-//float[][] y = {{0},{1},{1},{0}};
-//float[][] y = {{1,0,0},{0,0,1},{0,1,0},{1,0,0}};
-float[][] y = {{1,0,0,0,0},{0,1,0,0,0},{0,0,0,0,1},{0,0,0,1,0},{0,0,1,0,0}};
+float[][] X = {{0.15,0.21},{0.1,0.89},{0.9,0.12},{0.8,0.9}};//{0.8,0.9}};
+float[][] X2 = {{0.1,0.11},{0.12,0.8},{0.8,0.2},{0.89,0.8}};
+float[][] y = {{1,0,0},{0,1,0},{0,0,1},{1,0,0}};//{1,0,0,0,0},{0,1,0,0,0},{0,0,0,0,1},{0,0,0,1,0},{0,0,1,0,0}};
 
 void setup() {
   size(1200,400);
-  mlp.compile(0.01, 50000);
+  mlp.compile(0.01, 500000);
   mlp.train(X,y);
-  float[][] pred = mlp.predict(X);
+  float[][] pred = mlp.predict(X2);
   
   Mat.print(pred,2);
 }
@@ -47,6 +44,7 @@ class MLP{
   // learning parameters
   float learningRate;
   int epochs;
+  float loss;
   ArrayList<LayerConnection> layers = new ArrayList<LayerConnection>();
   
   MLP(int tempInputLayerUnits, int tempHiddenLayerUnits, int tempHiddenLayers, int tempOutputLayerUnits){ 
@@ -79,6 +77,11 @@ class MLP{
        activations = this.forward(X);
        dW = this.backPropagation(activations, y);
        this.updateWeights(dW);
+       if(loss <= 0.01){
+         print("trained in ", i, " epochs with a loss of ", this.loss);
+         i = epochs;
+         
+       }
      }
    }
    
@@ -124,17 +127,19 @@ class MLP{
      float[][] ai; // last layer output
      float[][] aj; // hidden layer output
      
-     
-     float[][] loss; 
+
   
      // output layer
      ai = activations.get(activations.size()-1);
-     aj = activations.get(activations.size()-2);   
+     aj = activations.get(activations.size()-2); 
      
-     loss = delta_cross_entropy(ai, argmax(y));     
-     //di = subtract(y, activations.get(activations.size()-1)); 
-     //di = Mat.dotMultiply(di, sigmoid(ai,true));// delta of the output layer
-     di = Mat.dotMultiply(loss, softmax(ai));// delta of the output layer
+     //update loss
+     cross_entropy_loss(ai, y);
+     
+     //loss = delta_cross_entropy(ai, argmax(y));  
+     di = subtract(y, activations.get(activations.size()-1)); 
+     di = Mat.dotMultiply(di, sigmoid(ai,true));// delta of the output layer
+     //di = Mat.dotMultiply(loss, softmax(ai));// delta of the output layer
      deltas.add(di);
      
 
@@ -172,10 +177,20 @@ class MLP{
    float[][] predict(float[][] X){
      ArrayList<float[][]> outputs = new ArrayList<float[][]>();
      outputs = this.forward(X);
-    //return outputs.get(outputs.size()-1);//
-    return softmax(outputs.get(outputs.size()-1)); 
+    return outputs.get(outputs.size()-1);//
+    //return softmax(outputs.get(outputs.size()-1)); 
    }
    
+  void cross_entropy_loss(float[][] S, float[][] y){
+    int n = y.length; // number of examples
+    float[][] L = dotProduct(S, y, true);
+    float tempLoss = 0;
+    for(int i=0; i<n; i++){
+      tempLoss += -1 * log(L[i][0]);
+    }
+    this.loss = tempLoss/ n;
+   
+  }
 
 }
 
